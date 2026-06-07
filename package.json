@@ -1,0 +1,55 @@
+{
+  "name": "mac-file-manager",
+  "private": true,
+  "version": "0.0.0",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:start": "cross-env NODE_ENV=development electron .",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && npm run electron:start\"",
+    "dist": "vite build && sed -i '' 's/crossorigin//g' dist/index.html && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.finder-alternative.app",
+    "productName": "Mac File Manager",
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": "dir",
+      "icon": "build/icon.png"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ]
+  },
+  "dependencies": {
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.0",
+    "eslint": "^10.3.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "vite": "^8.0.12",
+    "wait-on": "^9.0.10"
+  },
+  "productName": "Mac File Manager"
+}
