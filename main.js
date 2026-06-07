@@ -51,6 +51,7 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => {
     setTimeout(async () => {
       try {
+        if (win.isDestroyed() || win.webContents.isDestroyed()) return;
         const image = await win.webContents.capturePage();
         const screenshotPath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'scratch', 'finder-alternative', 'screenshot.png');
         fs.writeFileSync(screenshotPath, image.toPNG());
