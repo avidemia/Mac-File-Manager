@@ -247,10 +247,15 @@ ipcMain.handle('show-item-in-folder', async (event, filePath) => {
 
 ipcMain.handle('get-info', async (event, filePath) => {
   try {
-    const { execFile } = require('child_process');
-    execFile('osascript', ['-e', `tell application "Finder" to open information window of (POSIX file "${filePath}" as alias)`]);
+    execFile('osascript', [
+      '-e', 'tell application "Finder"',
+      '-e', 'activate',
+      '-e', `open information window of (POSIX file "${filePath}" as alias)`,
+      '-e', 'end tell'
+    ]);
     return true;
   } catch (err) {
+    console.error('Error in get-info:', err);
     return false;
   }
 });
