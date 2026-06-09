@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -245,6 +245,15 @@ ipcMain.handle('show-item-in-folder', async (event, filePath) => {
   shell.showItemInFolder(filePath);
 });
 
+ipcMain.handle('check-path', async (event, targetPath) => {
+  try {
+    const stats = await fs.promises.stat(targetPath);
+    return { exists: true, isDirectory: stats.isDirectory() };
+  } catch (error) {
+    return { exists: false };
+  }
+});
+
 ipcMain.handle('get-info', async (event, filePath) => {
   try {
     execFile('osascript', [
@@ -272,16 +281,26 @@ ipcMain.handle('rename-file', async (event, oldPath, newName) => {
   }
 });
 
+ipcMain.handle('toggle-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  }
+});
+
 ipcMain.handle('new-window', () => {
   createWindow();
 });
 
-ipcMain.on('drag-start', async (event, filePath) => {
+// Create a transparent 1x1 icon as fallback for synchronous drag start
+const dragIcon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+
+ipcMain.on('drag-start', (event, filePath) => {
   try {
-    const icon = await app.getFileIcon(filePath);
     event.sender.startDrag({
       file: filePath,
-      icon: icon
+      icon: dragIcon
     });
   } catch (e) {
     console.error('Error starting drag', e);

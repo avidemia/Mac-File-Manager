@@ -19,4 +19,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getOpenWithApps: (path) => ipcRenderer.invoke('get-open-with-apps', path),
   renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', oldPath, newName),
   showGetInfo: (path) => ipcRenderer.invoke('get-info', path),
+  checkPath: (path) => ipcRenderer.invoke('check-path', path),
+  toggleMaximize: () => ipcRenderer.invoke('toggle-maximize'),
 });

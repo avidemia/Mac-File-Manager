@@ -13,6 +13,7 @@ function App() {
   const [showOpenWith, setShowOpenWith] = useState(false);
   const [renamingPath, setRenamingPath] = useState(null);
   const [renameValue, setRenameValue] = useState('');
+  const [addressInput, setAddressInput] = useState('');
   const mainContentRef = useRef(null);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ function App() {
       setActiveFileIcon(null);
       setActiveFilePreview(null);
     }
+    setAddressInput(activePath || '');
   }, [activePath]);
 
   // Load initial config and home dir
@@ -135,7 +137,11 @@ function App() {
   const handleContextMenu = async (e, file, columnIndex) => {
     e.preventDefault();
     handleSelect(file.path, file.isDirectory, columnIndex);
-    setContextMenu({ x: e.clientX, y: e.clientY, path: file.path, isDirectory: file.isDirectory, apps: null });
+
+    const anchorBottom = e.clientY > window.innerHeight / 2;
+    const anchorRight = e.clientX > window.innerWidth / 2;
+
+    setContextMenu({ x: e.clientX, y: e.clientY, anchorBottom, anchorRight, path: file.path, isDirectory: file.isDirectory, apps: null });
     setShowOpenWith(false);
     
     if (!file.isDirectory && window.electronAPI) {
@@ -215,12 +221,37 @@ function App() {
     });
   };
 
+  const handleAddressSubmit = async (e) => {
+    e.preventDefault();
+    if (!addressInput) return;
+    
+    if (window.electronAPI && window.electronAPI.checkPath) {
+      const info = await window.electronAPI.checkPath(addressInput);
+      if (info.exists) {
+        if (info.isDirectory) {
+          setColumns([addressInput]);
+          setActivePath(addressInput);
+        } else {
+          // If it's a file, open the parent directory and select the file
+          const parent = addressInput.substring(0, addressInput.lastIndexOf('/')) || '/';
+          setColumns([parent]);
+          setActivePath(addressInput);
+        }
+      } else {
+        // Revert to current path if invalid
+        setAddressInput(activePath || '');
+      }
+    }
+  };
+
   return (
     <div className="app-container">
+      <div className="title-bar-drag-area" onDoubleClick={() => window.electronAPI && window.electronAPI.toggleMaximize && window.electronAPI.toggleMaximize()} />
       {/* Sidebar */}
       <div 
         className="sidebar"
         onDragOver={(e) => e.preventDefault()}
+        onDoubleClick={() => window.electronAPI && window.electronAPI.toggleMaximize && window.electronAPI.toggleMaximize()}
         onDrop={(e) => {
           e.preventDefault();
           const droppedPath = e.dataTransfer.files[0]?.path;
@@ -232,7 +263,7 @@ function App() {
           }
         }}
       >
-        <div className="sidebar-title">Favorites</div>
+        <div className="sidebar-title" style={{ WebkitAppRegion: 'drag' }}>Favorites</div>
         {config.sidebar.map((item, idx) => (
           <div 
             key={idx} 
@@ -284,8 +315,19 @@ function App() {
       {/* Middle Area Wrapper */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid var(--border-color)' }}>
         {/* Breadcrumb Top Bar */}
-        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: 'var(--sidebar-bg)', whiteSpace: 'nowrap', overflowX: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          {activePath || 'No path selected'}
+        <div 
+          onDoubleClick={() => window.electronAPI && window.electronAPI.toggleMaximize && window.electronAPI.toggleMaximize()}
+          style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)', background: 'var(--sidebar-bg)', whiteSpace: 'nowrap', overflowX: 'auto', fontSize: '0.85rem', color: 'var(--text-muted)', WebkitAppRegion: 'drag' }}
+        >
+          <form onSubmit={handleAddressSubmit} style={{ margin: 0, padding: 0, display: 'flex', WebkitAppRegion: 'no-drag' }}>
+            <input 
+              type="text" 
+              value={addressInput} 
+              onChange={(e) => setAddressInput(e.target.value)}
+              placeholder="Enter path here..."
+              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none', width: '100%', fontSize: '0.85rem' }}
+            />
+          </form>
         </div>
         
         {/* Main Miller Columns Area */}
@@ -368,7 +410,12 @@ function App() {
 
       {/* Context Menu */}
       {contextMenu && (
-        <div style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, background: 'var(--bg-color)', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', borderRadius: '6px', zIndex: 1000, padding: '0.25rem 0', minWidth: '150px' }}>
+        <div style={{ 
+          position: 'fixed', 
+          ...(contextMenu.anchorBottom ? { bottom: window.innerHeight - contextMenu.y } : { top: contextMenu.y }),
+          ...(contextMenu.anchorRight ? { right: window.innerWidth - contextMenu.x } : { left: contextMenu.x }),
+          background: 'var(--bg-color)', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', borderRadius: '6px', zIndex: 1000, padding: '0.25rem 0', minWidth: '150px' 
+        }}>
           <div style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => handleDoubleClick(contextMenu.path, contextMenu.isDirectory)} onMouseEnter={(e) => { e.target.style.background='var(--accent)'; e.target.style.color='white'; }} onMouseLeave={(e) => { e.target.style.background='transparent'; e.target.style.color='var(--text-main)'; }}>Open</div>
           {!contextMenu.isDirectory && (
             <div 
