@@ -11,6 +11,8 @@ function App() {
   const [clipboard, setClipboard] = useState(null); // { path: '...', action: 'copy' | 'cut' }
   const [contextMenu, setContextMenu] = useState(null);
   const [showOpenWith, setShowOpenWith] = useState(false);
+  const [renamingPath, setRenamingPath] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
   const mainContentRef = useRef(null);
 
   useEffect(() => {
@@ -140,6 +142,16 @@ function App() {
        const apps = await window.electronAPI.getOpenWithApps(file.path);
        setContextMenu(prev => prev ? { ...prev, apps } : null);
     }
+  };
+
+  const handleRenameSubmit = async () => {
+    if (renamingPath && renameValue) {
+      const newPath = await window.electronAPI.renameFile(renamingPath, renameValue);
+      if (newPath) {
+        setFileCache({});
+      }
+    }
+    setRenamingPath(null);
   };
 
   const toggleFavorite = (itemPath, itemName) => {
@@ -278,21 +290,26 @@ function App() {
         
         {/* Main Miller Columns Area */}
         <div className="main-content" ref={mainContentRef} style={{ flex: 1, display: 'flex', overflowX: 'auto', background: 'var(--bg-color)' }}>
-          {columns.map((dirPath, idx) => (
-            <Column 
-              key={dirPath}
-              dirPath={dirPath}
-              columnIndex={idx}
-              config={config}
-              activePath={activePath}
-              onSelect={handleSelect}
-              onDoubleClick={handleDoubleClick}
-              onContextMenu={handleContextMenu}
-              saveConfig={saveConfig}
-              fileCache={fileCache}
-              setFileCache={setFileCache}
-            />
-          ))}
+          {columns.map((dirPath, index) => (
+          <Column 
+            key={dirPath}
+            dirPath={dirPath}
+            columnIndex={index}
+            activePath={activePath}
+            onSelect={handleSelect}
+            onDoubleClick={handleDoubleClick}
+            onContextMenu={handleContextMenu}
+            config={config}
+            saveConfig={saveConfig}
+            fileCache={fileCache}
+            setFileCache={setFileCache}
+            renamingPath={renamingPath}
+            renameValue={renameValue}
+            setRenameValue={setRenameValue}
+            handleRenameSubmit={handleRenameSubmit}
+            setRenamingPath={setRenamingPath}
+          />
+        ))}
         </div>
       </div>
 
@@ -379,6 +396,10 @@ function App() {
               )}
             </div>
           )}
+          <div style={{ borderBottom: '1px solid var(--border-color)', margin: '0.25rem 0' }}></div>
+          <div style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => window.electronAPI.showGetInfo(contextMenu.path)} onMouseEnter={(e) => { e.target.style.background='var(--accent)'; e.target.style.color='white'; }} onMouseLeave={(e) => { e.target.style.background='transparent'; e.target.style.color='var(--text-main)'; }}>Get Info</div>
+          <div style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => { setRenamingPath(contextMenu.path); setRenameValue(contextMenu.path.split('/').pop()); setContextMenu(null); }} onMouseEnter={(e) => { e.target.style.background='var(--accent)'; e.target.style.color='white'; }} onMouseLeave={(e) => { e.target.style.background='transparent'; e.target.style.color='var(--text-main)'; }}>Rename</div>
+          <div style={{ borderBottom: '1px solid var(--border-color)', margin: '0.25rem 0' }}></div>
           <div style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => window.electronAPI.showItemInFolder(contextMenu.path)} onMouseEnter={(e) => { e.target.style.background='var(--accent)'; e.target.style.color='white'; }} onMouseLeave={(e) => { e.target.style.background='transparent'; e.target.style.color='var(--text-main)'; }}>Reveal in Finder</div>
           <div style={{ borderBottom: '1px solid var(--border-color)', margin: '0.25rem 0' }}></div>
           <div style={{ padding: '0.5rem 1rem', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => toggleFavorite(contextMenu.path, contextMenu.path.split('/').pop())} onMouseEnter={(e) => { e.target.style.background='var(--accent)'; e.target.style.color='white'; }} onMouseLeave={(e) => { e.target.style.background='transparent'; e.target.style.color='var(--text-main)'; }}>
@@ -396,7 +417,7 @@ function App() {
   );
 }
 
-function Column({ dirPath, columnIndex, config, activePath, onSelect, onDoubleClick, onContextMenu, saveConfig, fileCache, setFileCache }) {
+function Column({ dirPath, columnIndex, config, activePath, onSelect, onDoubleClick, onContextMenu, saveConfig, fileCache, setFileCache, renamingPath, renameValue, setRenameValue, handleRenameSubmit, setRenamingPath }) {
   const [files, setFiles] = useState([]);
   const [searchResults, setSearchResults] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -590,12 +611,38 @@ function Column({ dirPath, columnIndex, config, activePath, onSelect, onDoubleCl
               <div className="file-icon">
                 {file.isDirectory ? <Folder size={18} fill={activePath === file.path ? "white" : "var(--accent)"} /> : <FileText size={18} />}
               </div>
-              <div className="file-name">
-                {file.name}
-                {searchResults && file.parentPath && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-all' }}>
-                    {file.parentPath.replace(dirPath, '') || '/'}
-                  </div>
+              <div className="file-name" style={{ flex: 1, minWidth: 0 }}>
+                {renamingPath === file.path ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleRenameSubmit();
+                      if (e.key === 'Escape') setRenamingPath(null);
+                    }}
+                    onBlur={handleRenameSubmit}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-color)',
+                      color: 'var(--text-main)',
+                      border: '1px solid var(--accent)',
+                      borderRadius: '4px',
+                      padding: '2px 4px',
+                      outline: 'none'
+                    }}
+                  />
+                ) : (
+                  <>
+                    {file.name}
+                    {searchResults && file.parentPath && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-all' }}>
+                        {file.parentPath.replace(dirPath, '') || '/'}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               

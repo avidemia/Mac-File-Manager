@@ -17,4 +17,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchDirectory: (path, query) => ipcRenderer.invoke('search-directory', path, query),
   openWith: (path, appName) => ipcRenderer.invoke('open-with', path, appName),
   getOpenWithApps: (path) => ipcRenderer.invoke('get-open-with-apps', path),
+  renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', oldPath, newName),
+  showGetInfo: (path) => ipcRenderer.invoke('get-info', path),
 });

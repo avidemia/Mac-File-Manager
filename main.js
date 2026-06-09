@@ -245,6 +245,28 @@ ipcMain.handle('show-item-in-folder', async (event, filePath) => {
   shell.showItemInFolder(filePath);
 });
 
+ipcMain.handle('get-info', async (event, filePath) => {
+  try {
+    const { execFile } = require('child_process');
+    execFile('osascript', ['-e', `tell application "Finder" to open information window of (POSIX file "${filePath}" as alias)`]);
+    return true;
+  } catch (err) {
+    return false;
+  }
+});
+
+ipcMain.handle('rename-file', async (event, oldPath, newName) => {
+  try {
+    const dir = path.dirname(oldPath);
+    const newPath = path.join(dir, newName);
+    await fs.promises.rename(oldPath, newPath);
+    return newPath;
+  } catch (error) {
+    console.error('Error renaming file:', error);
+    return null;
+  }
+});
+
 ipcMain.handle('new-window', () => {
   createWindow();
 });
