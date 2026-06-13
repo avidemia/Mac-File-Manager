@@ -65,9 +65,10 @@ function createWindow() {
   });
 
   windows.add(win);
+  const webContentsId = win.webContents.id;
   win.on('closed', () => {
     windows.delete(win);
-    windowVisiblePaths.delete(win.webContents.id);
+    windowVisiblePaths.delete(webContentsId);
     
     // Recalculate watchers
     const allPaths = new Set();
