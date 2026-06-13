@@ -18,6 +18,38 @@ const DEFAULT_CONFIG = {
 };
 
 const windows = new Set();
+const activeWatchers = new Map(); // path -> fs.FSWatcher
+const windowVisiblePaths = new Map(); // winWebContentsId -> Set of paths
+let appClipboard = null; // { paths: [], action: 'copy' | 'cut' }
+
+function updateDirectoryWatchers(allWatchedPaths) {
+  // Remove watchers for paths that are no longer watched
+  for (const [watchedPath, watcher] of activeWatchers.entries()) {
+    if (!allWatchedPaths.has(watchedPath)) {
+      watcher.close();
+      activeWatchers.delete(watchedPath);
+    }
+  }
+
+  // Add watchers for new paths
+  for (const path of allWatchedPaths) {
+    if (!activeWatchers.has(path)) {
+      try {
+        if (!fs.existsSync(path)) continue;
+        const watcher = fs.watch(path, (eventType, filename) => {
+          for (const win of windows) {
+            if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+              win.webContents.send('directory-changed', path);
+            }
+          }
+        });
+        activeWatchers.set(path, watcher);
+      } catch (err) {
+        console.error(`Error watching directory ${path}:`, err);
+      }
+    }
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -35,6 +67,16 @@ function createWindow() {
   windows.add(win);
   win.on('closed', () => {
     windows.delete(win);
+    windowVisiblePaths.delete(win.webContents.id);
+    
+    // Recalculate watchers
+    const allPaths = new Set();
+    for (const paths of windowVisiblePaths.values()) {
+      for (const p of paths) {
+        allPaths.add(p);
+      }
+    }
+    updateDirectoryWatchers(allPaths);
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -109,6 +151,16 @@ ipcMain.handle('get-directory-contents', async (event, dirPath) => {
   } catch (error) {
     console.error('Error reading directory:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('create-directory', async (event, dirPath) => {
+  try {
+    await fs.promises.mkdir(dirPath, { recursive: true });
+    return true;
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    return false;
   }
 });
 
@@ -226,6 +278,16 @@ ipcMain.handle('move-file', async (event, source, target) => {
     await fs.promises.rename(source, target);
     return true;
   } catch (error) {
+    if (error.code === 'EXDEV') {
+      try {
+        await fs.promises.cp(source, target, { recursive: true });
+        await fs.promises.rm(source, { recursive: true, force: true });
+        return true;
+      } catch (err) {
+        console.error('Error moving file across volumes:', err);
+        return false;
+      }
+    }
     console.error('Error moving file:', error);
     return false;
   }
@@ -293,18 +355,35 @@ ipcMain.handle('new-window', () => {
   createWindow();
 });
 
-// Create a transparent 1x1 icon as fallback for synchronous drag start
 const dragIcon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
 
-ipcMain.on('drag-start', (event, filePath) => {
+let currentDraggingPaths = [];
+
+ipcMain.on('drag-start', (event, paths) => {
   try {
+    const filePaths = Array.isArray(paths) ? paths : [paths];
+    currentDraggingPaths = filePaths;
     event.sender.startDrag({
-      file: filePath,
+      files: filePaths,
+      file: filePaths[0],
       icon: dragIcon
     });
   } catch (e) {
     console.error('Error starting drag', e);
   }
+});
+
+ipcMain.handle('get-dragging-paths', () => {
+  return currentDraggingPaths;
+});
+
+ipcMain.handle('set-clipboard', (event, data) => {
+  appClipboard = data;
+  return true;
+});
+
+ipcMain.handle('get-clipboard', () => {
+  return appClipboard;
 });
 
 ipcMain.handle('search-directory', async (event, dirPath, query) => {
@@ -366,4 +445,17 @@ ipcMain.handle('open-with', async (event, filePath, appPath) => {
   } catch (err) {
     return false;
   }
+});
+
+ipcMain.on('update-visible-paths', (event, pathsArray) => {
+  const winId = event.sender.id;
+  windowVisiblePaths.set(winId, new Set(pathsArray));
+  
+  const allPaths = new Set();
+  for (const paths of windowVisiblePaths.values()) {
+    for (const p of paths) {
+      allPaths.add(p);
+    }
+  }
+  updateDirectoryWatchers(allPaths);
 });
