@@ -1085,11 +1085,14 @@ function Column({
           e.preventDefault();
           if (window.electronAPI) {
             let paths = [];
+            let isExternal = false;
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
               paths = Array.from(e.dataTransfer.files).map(f => f.path).filter(Boolean);
+              isExternal = true;
             }
             if (paths.length === 0) {
               paths = await window.electronAPI.getDraggingPaths();
+              isExternal = false;
             }
 
             if (paths.length > 0) {
@@ -1097,10 +1100,17 @@ function Column({
               for (const droppedPath of paths) {
                 if (!droppedPath) continue;
                 const sourceParent = droppedPath.substring(0, droppedPath.lastIndexOf('/'));
-                if (sourceParent !== dirPath) {
+                if (sourceParent !== dirPath || isExternal) {
                   const fileName = droppedPath.split('/').pop();
-                  const target = dirPath + '/' + fileName;
-                  const success = await window.electronAPI.moveFile(droppedPath, target);
+                  let target = dirPath + '/' + fileName;
+                  if (droppedPath === target) continue;
+                  
+                  let success = false;
+                  if (isExternal) {
+                    success = await window.electronAPI.copyFile(droppedPath, target);
+                  } else {
+                    success = await window.electronAPI.moveFile(droppedPath, target);
+                  }
                   if (success) changed = true;
                 }
               }
@@ -1141,11 +1151,14 @@ function Column({
                   e.stopPropagation();
                   if (window.electronAPI) {
                     let paths = [];
+                    let isExternal = false;
                     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                       paths = Array.from(e.dataTransfer.files).map(f => f.path).filter(Boolean);
+                      isExternal = true;
                     }
                     if (paths.length === 0) {
                       paths = await window.electronAPI.getDraggingPaths();
+                      isExternal = false;
                     }
                     if (paths.length > 0) {
                       let changed = false;
@@ -1155,7 +1168,14 @@ function Column({
                         if (sourceParent !== file.path && droppedPath !== file.path) {
                           const fileName = droppedPath.split('/').pop();
                           const target = file.path + '/' + fileName;
-                          const success = await window.electronAPI.moveFile(droppedPath, target);
+                          if (droppedPath === target) continue;
+
+                          let success = false;
+                          if (isExternal) {
+                            success = await window.electronAPI.copyFile(droppedPath, target);
+                          } else {
+                            success = await window.electronAPI.moveFile(droppedPath, target);
+                          }
                           if (success) {
                             setFileCache(prev => {
                               const newCache = { ...prev };

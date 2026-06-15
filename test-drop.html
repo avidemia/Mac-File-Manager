@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html>
+<body style="width: 100vw; height: 100vh; background: red;" 
+      ondragover="event.preventDefault(); event.dataTransfer.dropEffect = 'copy';" 
+      ondrop="event.preventDefault(); const paths = Array.from(event.dataTransfer.files).map(f => f.path); require('fs').writeFileSync('drop-test.txt', paths.join(', ')); window.close();">
+  Drop here
+</body>
+</html>

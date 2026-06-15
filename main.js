@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, nativeImage, clipboard } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
