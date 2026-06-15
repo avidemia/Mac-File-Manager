@@ -393,6 +393,29 @@ ipcMain.handle('set-clipboard', (event, data) => {
 });
 
 ipcMain.handle('get-clipboard', () => {
+  if (appClipboard && appClipboard.paths && appClipboard.paths.length > 0) {
+    return appClipboard;
+  }
+  
+  const nsFilenames = clipboard.read('NSFilenamesPboardType');
+  if (nsFilenames) {
+    const matches = [...nsFilenames.matchAll(/<string>(.*?)<\/string>/g)];
+    const paths = matches.map(m => m[1]
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+    );
+    if (paths.length > 0) return { paths, action: 'copy' };
+  }
+  
+  const fileUrl = clipboard.read('public.file-url');
+  if (fileUrl && fileUrl.startsWith('file://')) {
+    const filePath = decodeURIComponent(fileUrl.replace('file://', ''));
+    return { paths: [filePath], action: 'copy' };
+  }
+  
   return appClipboard;
 });
 

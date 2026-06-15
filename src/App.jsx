@@ -1079,7 +1079,7 @@ function Column({
         onDragEnter={(e) => e.preventDefault()}
         onDragOver={(e) => {
           e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
+          e.dataTransfer.dropEffect = 'copy';
         }}
         onDrop={async (e) => {
           e.preventDefault();
@@ -1133,7 +1133,7 @@ function Column({
               onDragEnter={(e) => e.preventDefault()}
               onDragOver={(e) => {
                 e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
+                e.dataTransfer.dropEffect = 'copy';
               }}
               onDrop={async (e) => {
                 if (file.isDirectory) {
