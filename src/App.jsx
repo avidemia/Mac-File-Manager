@@ -22,7 +22,16 @@ function App() {
   useEffect(() => {
     const closeContextMenu = () => setContextMenu(null);
     window.addEventListener('click', closeContextMenu);
-    return () => window.removeEventListener('click', closeContextMenu);
+    
+    const preventDefault = (e) => e.preventDefault();
+    window.addEventListener('dragover', preventDefault, false);
+    window.addEventListener('drop', preventDefault, false);
+    
+    return () => {
+      window.removeEventListener('click', closeContextMenu);
+      window.removeEventListener('dragover', preventDefault, false);
+      window.removeEventListener('drop', preventDefault, false);
+    };
   }, []);
 
   useEffect(() => {
