@@ -365,7 +365,7 @@ ipcMain.handle('new-window', () => {
   createWindow();
 });
 
-const dragIconPath = path.join(app.getAppPath(), 'drag-icon.png');
+const dragIcon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAM0lEQVR4nO3OMQEAMAjEwKe26q6iWYsMlouBXN3XP4udzTkAAAAAAAAAAAAAAAAAAECSDITmAvLu1HbNAAAAAElFTkSuQmCC');
 
 let currentDraggingPaths = [];
 
@@ -376,7 +376,7 @@ ipcMain.on('drag-start', (event, paths) => {
     event.sender.startDrag({
       files: filePaths,
       file: filePaths[0],
-      icon: dragIconPath
+      icon: dragIcon
     });
   } catch (e) {
     console.error('Error starting drag', e);
