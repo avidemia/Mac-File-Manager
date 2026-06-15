@@ -6,6 +6,15 @@ import { exec, execFile } from 'child_process';
 
 const CONFIG_PATH = path.join(os.homedir(), '.finder-alt-config.json');
 
+process.on('uncaughtException', (err) => {
+  if (err.code === 'EPIPE') return;
+  // Avoid calling console.error here if it's an EPIPE, as it might trigger another EPIPE
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  // Ignore to prevent crash dialogs for minor rejections
+});
+
 const DEFAULT_CONFIG = {
   sidebar: [
     { name: 'Home', path: os.homedir() },
